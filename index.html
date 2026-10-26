@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lectura de medidores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+--bg:#EDEFFC;--card:#fff;--ink:#0E1633;--mute:#535E8A;--acc:#2F3BFF;--onacc:#fff;
+--hi:#FFC619;--onhi:#0E1633;--ok:#0F7F58;--bad:#D6293E;--edge:#0E1633;--sh:#0E1633;
+--line:#CBD0EE;--soft:#E1E5F9;--lcd:#0E1633;
+--disp:"Bricolage Grotesque","Trebuchet MS","Segoe UI",system-ui,sans-serif;
+--mono:"Space Mono",ui-monospace,Menlo,Consolas,monospace;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0A0F28;--card:#141B45;--ink:#F1F3FF;--mute:#9EA8DA;--acc:#8693FF;--onacc:#0A0F28;--hi:#FFD23F;--onhi:#0A0F28;--ok:#4FD8A0;--bad:#FF7088;--edge:#4A57C9;--sh:#04071A;--line:#2A346F;--soft:#1D2658;--lcd:#060A1F;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0A0F28;--card:#141B45;--ink:#F1F3FF;--mute:#9EA8DA;--acc:#8693FF;--onacc:#0A0F28;--hi:#FFD23F;--onhi:#0A0F28;--ok:#4FD8A0;--bad:#FF7088;--edge:#4A57C9;--sh:#04071A;--line:#2A346F;--soft:#1D2658;--lcd:#060A1F;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;font-family:var(--disp);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+h1,h2{font-weight:800;letter-spacing:-.02em;line-height:1.05}
+@keyframes giro{to{transform:rotate(360deg)}}
+@keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@media (prefers-reduced-motion:reduce){.hspin,#campo .spin,#campo .shake{animation:none!important}}
+
+/* ===== Botones y campos compartidos ===== */
+#campo button,#clase button{font:inherit;font-weight:700;padding:10px 18px;border:2px solid var(--edge);border-radius:12px;background:var(--card);color:var(--ink);cursor:pointer;box-shadow:3px 3px 0 var(--sh);transition:transform .08s,box-shadow .08s}
+#campo button:hover,#clase button:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--sh)}
+#campo button:active,#clase button:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--sh)}
+#campo button:disabled,#clase button:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+#campo button:focus-visible,#clase button:focus-visible,#menu .opt:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+#campo .back,#clase .back{font-size:.9rem;padding:6px 14px;margin:0 0 16px}
+#campo #start,#campo #send,#campo #again,#clase button.main{background:var(--acc);color:var(--onacc)}
+
+
+/* ===== Logo CFE ===== */
+.cfe-logo{display:flex;justify-content:center;margin:0 0 18px}
+.cfe-logo svg{width:min(220px,60vw);height:auto;display:block}
+
+/* ===== Menú ===== */
+#menu{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 20px}
+#menu main{width:100%;max-width:540px}
+.hero{display:flex;justify-content:center;margin-bottom:12px}
+.hero svg{width:min(260px,68vw);height:auto;overflow:visible}
+.hy{fill:var(--hi)}.hs{fill:var(--sh)}
+.hb{fill:var(--card);stroke:var(--edge);stroke-width:4}
+.hb2{fill:var(--soft);stroke:var(--edge);stroke-width:4}
+.hw{fill:var(--lcd);stroke:var(--edge);stroke-width:3}
+.ht{fill:var(--hi);font-family:var(--mono);font-weight:700}
+.hd{fill:var(--soft);stroke:var(--edge);stroke-width:3}
+.hh{stroke:var(--acc);stroke-width:5;stroke-linecap:round}
+.hc{fill:var(--edge)}
+.hspin{transform-origin:130px 148px;animation:giro 3.2s linear infinite}
+#menu h1{font-size:clamp(2.1rem,8vw,3rem);margin:0 0 8px;text-align:center}
+#menu p{color:var(--mute);margin:0 0 26px;text-align:center;font-size:1.05rem}
+.opt{display:flex;gap:16px;align-items:center;width:100%;text-align:left;font:inherit;color:var(--ink);background:var(--card);border:2px solid var(--edge);border-radius:18px;padding:16px;margin-bottom:16px;cursor:pointer;box-shadow:5px 5px 0 var(--sh);transition:transform .1s,box-shadow .1s}
+.opt:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--sh)}
+.opt:active{transform:translate(4px,4px);box-shadow:1px 1px 0 var(--sh)}
+.opt .ico{flex:none;width:60px;height:60px;border-radius:16px;border:2px solid var(--edge);display:grid;place-items:center}
+.opt .ico svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.opt-campo .ico{background:var(--hi);color:var(--onhi)}
+.opt-clase .ico{background:var(--acc);color:var(--onacc)}
+.opt b{display:block;font-size:1.3rem;margin-bottom:3px;letter-spacing:-.01em}
+.opt .d{display:block;color:var(--mute);font-size:.95rem;line-height:1.35}
+
+/* ===== Lectura en campo ===== */
+#campo{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);display:flex;justify-content:center;padding:20px}
+#campo main{width:100%;max-width:520px}
+#campo .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+@media (max-width:440px){#campo .stats{grid-template-columns:repeat(2,1fr)}}
+#campo .stat{background:var(--card);border:2px solid var(--edge);border-radius:14px;padding:10px 12px;box-shadow:3px 3px 0 var(--sh)}
+#campo .stat:first-child{background:var(--hi);color:var(--onhi)}
+#campo .stat b{display:block;font-family:var(--mono);font-size:1.35rem;font-weight:700;font-variant-numeric:tabular-nums}
+#campo .stat span{color:var(--mute);font-size:.78rem;font-weight:600}
+#campo .stat:first-child span{color:var(--onhi)}
+#campo #ok b{color:var(--ok)}
+#campo #bad b{color:var(--bad)}
+#campo .panel{background:var(--card);border:2px solid var(--edge);border-radius:20px;padding:24px;box-shadow:6px 6px 0 var(--sh)}
+#campo .prog{height:14px;background:var(--soft);border:2px solid var(--edge);border-radius:99px;margin-bottom:20px;overflow:hidden}
+#campo .prog i{display:block;height:100%;background:var(--hi);width:0;transition:width .3s}
+#campo h1{margin:0 0 8px;font-size:1.9rem}
+#campo p{color:var(--mute);margin:0 0 18px}
+#campo .folio{color:var(--mute);font-size:.9rem;font-weight:700;margin-bottom:8px}
+#campo .medidor{font-family:var(--mono);font-size:clamp(1.7rem,8vw,2.4rem);font-weight:700;letter-spacing:.1em;text-align:center;margin:0 0 16px;padding:16px 12px;background:var(--lcd);color:var(--hi);border:2px solid var(--edge);border-radius:14px;word-break:break-all}
+#campo .lbl{margin:0 0 10px;color:var(--ink);font-weight:700}
+#campo .row{display:flex;gap:10px;flex-wrap:wrap}
+#campo input,#campo select{flex:1;min-width:0;font:inherit;font-size:1.15rem;padding:11px 14px;border:2px solid var(--edge);border-radius:12px;background:var(--card);color:var(--ink)}
+#campo select{flex:0 0 auto}
+#campo #resp{font-family:var(--mono);letter-spacing:.06em}
+#campo input:focus,#campo select:focus{outline:none;box-shadow:0 0 0 3px var(--acc)}
+#campo #msg{min-height:1.5em;margin-top:14px;font-weight:800}
+#campo .shake{animation:sh .3s}
+#campo .scroll{overflow-x:auto;max-height:340px;overflow-y:auto;border:2px solid var(--edge);border-radius:12px;margin:12px 0}
+#campo table{width:100%;border-collapse:collapse;font-size:.9rem}
+#campo td,#campo th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}
+#campo th{background:var(--soft);position:sticky;top:0;font-weight:800}
+#campo .hide{display:none}
+#campo .anoms{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+#campo .anoms button{font-size:.88rem;padding:12px 8px}
+#campo .anoms button.on{background:var(--hi);color:var(--onhi)}
+#campo .anlist{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+#campo .anlist.hide{display:none}
+#campo .anlist button{font-size:.85rem;font-weight:600;padding:10px 6px;box-shadow:2px 2px 0 var(--sh)}
+#campo .anlist button:hover{border-color:var(--acc);color:var(--acc)}
+#campo .meter{display:flex;justify-content:center;margin:2px 0 20px}
+#campo .meter svg{width:170px;max-width:60%;height:auto;filter:drop-shadow(5px 5px 0 var(--sh))}
+#campo .m1{fill:var(--card);stroke:var(--edge);stroke-width:3}
+#campo .m2{fill:var(--soft);stroke:var(--edge);stroke-width:2}
+#campo .m3{fill:var(--edge)}
+#campo .mt{fill:var(--ink);font-family:var(--mono);font-weight:700}
+#campo .mt2{fill:var(--ink)}
+#campo .mk{stroke:var(--bad);stroke-width:4;stroke-linecap:round}
+#campo .spin{transform-origin:100px 134px;animation:giro 3s linear infinite}
+#campo .campos{display:grid;gap:6px;margin-bottom:14px}
+#campo #err{color:var(--bad);font-weight:800;min-height:1.3em;margin-bottom:6px}
+#campo h2{font-size:1.1rem;margin:18px 0 4px}
+#campo label{color:var(--ink);font-size:.9rem;font-weight:700}
+#campo .start{display:flex;gap:10px;align-items:center;margin-bottom:18px}
+#campo .start input{max-width:100px;flex:none;font-size:1rem}
+
+#campo .scan{margin-top:14px}
+#campo .scan>button{width:100%}
+#campo #scanMsg{margin-top:10px;font-weight:700;font-size:.92rem;color:var(--mute);min-height:1.2em}
+#campo #scanMsg.bad{color:var(--bad)}
+#campo #scanMsg.ok{color:var(--ok)}
+#campo .scan select{flex:1;font-size:1rem}
+#campo .scan label.chk{display:flex;gap:8px;align-items:center;margin-top:8px;font-weight:600}
+#campo .scan label.chk input{flex:none;width:20px;height:20px}
+#campo .dialbox{margin-top:12px}
+#campo .dialbox.hide{display:none}
+#campo .dialimg{width:100%;border:2px solid var(--edge);border-radius:12px;display:block;margin-bottom:10px}
+#campo .dials{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap}
+#campo .dials select{flex:1;min-width:52px;text-align:center;font-family:var(--mono)}
+#campo .camsvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#campo .dials select.dud{border-color:var(--bad);box-shadow:0 0 0 3px var(--bad)}
+#campo .btnlike{display:block;text-align:center;margin-top:8px;font-weight:700;padding:10px 18px;border:2px solid var(--edge);border-radius:12px;background:var(--card);color:var(--ink);cursor:pointer;box-shadow:3px 3px 0 var(--sh)}
+#campo .mkcv{width:100%;border:2px solid var(--edge);border-radius:12px;display:block;touch-action:manipulation}
+#campo .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+#campo .chips button{font-family:var(--mono);font-size:1rem;padding:6px 12px;box-shadow:2px 2px 0 var(--sh)}
+
+#campo .cam{position:fixed;inset:0;z-index:50;background:var(--bg);padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px;overflow:auto}
+#campo .cam.hide{display:none}
+#campo .camwrap{position:relative;width:100%;max-width:520px;border:2px solid var(--edge);border-radius:14px;overflow:hidden;background:#000;line-height:0}
+#campo .camwrap video{width:100%;height:auto;display:block}
+#campo .guide{position:absolute;left:8%;width:84%;top:38%;height:24%;border:3px solid var(--hi);border-radius:8px;box-shadow:0 0 0 999px rgba(0,0,0,.45);pointer-events:none}
+#campo .cam p{margin:0;max-width:520px;text-align:center;font-weight:700}
+#campo #camMsg{font-weight:800;min-height:1.3em;text-align:center}
+#campo #camShot{background:var(--acc);color:var(--onacc)}
+
+/* ===== Lectura en clase ===== */
+#clase{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);line-height:1.5}
+#clase main{max-width:760px;margin:0 auto;padding:20px 16px 40px}
+#clase h1{font-size:clamp(1.6rem,5vw,2.2rem);margin:0 0 6px}
+#clase p.sub{margin:0 0 18px;color:var(--mute)}
+#clase .meter{background:var(--hi);color:var(--onhi);border:2px solid var(--edge);border-radius:22px;padding:16px;box-shadow:6px 6px 0 var(--sh)}
+#clase .window{background:var(--lcd);border:2px solid var(--edge);border-radius:14px;padding:14px 8px}
+#clase .dials{display:flex;justify-content:center;gap:4px}
+#clase .dials svg{width:19%;max-width:120px;height:auto}
+#clase .discwrap{margin-top:12px;background:var(--lcd);border:2px solid var(--edge);border-radius:14px;padding:8px;display:flex;justify-content:center}
+#clase .discwrap svg{width:150px;height:56px}
+#clase .panel{background:var(--card);border:2px solid var(--edge);border-radius:20px;padding:16px;margin-top:20px;box-shadow:6px 6px 0 var(--sh)}
+#clase .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+#clase .stat{background:var(--bg);border:2px solid var(--edge);border-radius:14px;padding:8px 10px;text-align:center}
+#clase .stat:last-child{background:var(--hi);color:var(--onhi)}
+#clase .stat b{display:block;font-family:var(--mono);font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}
+#clase .stat span{font-size:.85rem;color:var(--mute);font-weight:600}
+#clase .stat:last-child span{color:var(--onhi)}
+#clase #okN{color:var(--ok)}
+#clase #badN{color:var(--bad)}
+#clase .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+#clase label{font-size:.95rem;font-weight:700}
+#clase input[type=number]{width:160px;font:inherit;font-family:var(--mono);font-size:1.2rem;padding:9px 12px;border:2px solid var(--edge);border-radius:12px;background:var(--card);color:var(--ink);cursor:text;font-variant-numeric:tabular-nums}
+#clase input[type=number]:focus{outline:none;box-shadow:0 0 0 3px var(--acc)}
+#clase input:disabled{opacity:.5;cursor:not-allowed}
+#clase .hint{font-size:.85rem;color:var(--mute);font-weight:600}
+#clase #cmsg{min-height:1.6em;margin:14px 0 0;font-weight:800}
+#clase #cmsg.ok{color:var(--ok)}
+#clase #cmsg.bad{color:var(--bad)}
+#clase .nopt{min-width:56px;font-size:1.05rem}
+#clase .nopt[aria-pressed="true"]{background:var(--hi);color:var(--onhi)}
+#clase .nopt[aria-pressed="true"]:disabled{opacity:1}
+</style>
+</head>
+<body data-mode="menu">
+<div id="menu">
+<main>
+  <div class="cfe-logo"><svg viewBox="0 0 240 84" role="img" aria-label="CFE, Comisión Federal de Electricidad" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="2" width="236" height="80" rx="14" fill="#fff" stroke="#00A04A" stroke-width="3"/>
+    <rect x="12" y="12" width="64" height="60" rx="10" fill="#00A04A"/>
+    <path d="M50 18 L32 46 H44 L38 66 L60 36 H47 Z" fill="#fff"/>
+    <text x="88" y="52" font-family="Arial Black,Arial,Helvetica,sans-serif" font-weight="900" font-size="38" fill="#00A04A" letter-spacing="1">CFE</text>
+    <text x="89" y="66" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="7.5" fill="#00662F" letter-spacing=".3">COMISIÓN FEDERAL DE ELECTRICIDAD</text>
+  </svg></div>
+  <div class="hero"><svg viewBox="0 0 260 250" role="img" aria-label="Medidor de luz con el disco girando">
+    <circle class="hy" cx="130" cy="124" r="112"/>
+    <rect class="hs" x="100" y="206" width="72" height="24" rx="5"/>
+    <rect class="hb2" x="94" y="200" width="72" height="24" rx="5"/>
+    <circle class="hs" cx="136" cy="128" r="84"/>
+    <circle class="hb" cx="130" cy="122" r="84"/>
+    <rect class="hw" x="78" y="52" width="104" height="38" rx="6"/>
+    <text class="ht" x="130" y="80" text-anchor="middle" font-size="26" letter-spacing="6">00125</text>
+    <circle class="hd" cx="130" cy="148" r="32"/>
+    <g class="hspin"><line class="hh" x1="130" y1="148" x2="130" y2="122"/></g>
+    <circle class="hc" cx="130" cy="148" r="4"/>
+  </svg></div>
+  <h1>Lectura de medidores</h1>
+  <p>¿Qué tipo de lectura quieres practicar?</p>
+  <button class="opt opt-campo" type="button" data-go="campo">
+    <i class="ico" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="7" y="5" width="18" height="23" rx="3"/><path d="M12 5V3.5h8V5"/><path d="M12 16l3 3 5-6"/></svg></i>
+    <span class="txt"><b>Lectura en campo</b><span class="d">Lista de medidores por folio: escribe la lectura o marca la anomalía, con tiempo y registro de resultados.</span></span>
+  </button>
+  <button class="opt opt-clase" type="button" data-go="clase">
+    <i class="ico" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11"/><path d="M16 16l5-6M16 7v2M7 16h2M25 16h-2"/></svg></i>
+    <span class="txt"><b>Lectura en clase</b><span class="d">Simulador de diales con lecturas al azar, cronómetro y conteo de aciertos y errores.</span></span>
+  </button>
+</main>
+</div>
+
+<div id="campo" hidden>
+<main>
+  <button class="back" type="button" data-go="menu">← Inicio</button>
+  <div class="stats">
+    <div class="stat"><b id="time">0:00</b><span>Tiempo</span></div>
+    <div class="stat" id="ok"><b>0</b><span>Aciertos</span></div>
+    <div class="stat" id="bad"><b>0</b><span>Errores</span></div>
+    <div class="stat"><b id="pos">0/0</b><span>Medidor</span></div>
+  </div>
+
+  <section class="panel" id="inicio">
+    <div class="meter"><svg viewBox="0 0 200 210" role="img" aria-label="Medidor watthórimetro">
+      <rect class="m3" x="70" y="186" width="60" height="16" rx="3"/>
+      <circle class="m1" cx="100" cy="100" r="88"/>
+      <rect class="m2" x="52" y="36" width="96" height="32" rx="4"/>
+      <text class="mt" x="100" y="60" text-anchor="middle" font-size="22" letter-spacing="5">00125</text>
+      <text class="mt" x="100" y="86" text-anchor="middle" font-size="10">kWh · WATTHÓRIMETRO</text>
+      <circle class="m2" cx="100" cy="134" r="30"/>
+      <g class="spin"><line class="mk" x1="100" y1="134" x2="100" y2="108"/></g>
+      <circle class="mt2" cx="100" cy="134" r="3"/>
+    </svg></div>
+    <h1>Lecturas de medidores</h1>
+    <p>Te muestro el número del medidor, en orden de folio. Escribe la lectura (se acepta con una unidad de diferencia, de más o de menos). Si el medidor tiene una anomalía, usa el botón “Anomalías sin lectura” cuando no hay lectura que tomar, o “Anomalías con lecturas” cuando la anomalía viene con lectura.</p>
+    <div class="campos">
+      <label for="nombre">Nombre</label>
+      <input id="nombre" type="text" autocomplete="name" maxlength="60">
+      <label for="idnum">RTT o RPE</label>
+      <div class="row"><select id="tipo" aria-label="Tipo"><option>RTT</option><option>RPE</option></select><input id="idnum" type="text" inputmode="numeric" maxlength="12"></div>
+    </div>
+    <div id="err" role="alert"></div>
+    <div class="start"><label for="desde">Empezar en el folio</label><input id="desde" type="number" min="1" max="160" value="1"></div>
+    <button id="start">Empezar</button>
+  </section>
+
+  <section class="panel hide" id="juego">
+    <div class="prog"><i id="bar"></i></div>
+    <div class="folio" id="folio"></div>
+    <div class="medidor" id="medidor"></div>
+    <p class="lbl">¿Cuál es la lectura?</p>
+    <div class="row">
+      <input id="resp" type="text" inputmode="numeric" autocomplete="off" aria-label="Lectura">
+      <button id="send">Responder</button>
+    </div>
+    <div class="scan">
+      <div class="row" style="margin-bottom:8px"><select id="scanTipo" aria-label="Tipo de medidor">
+        <option value="lcd">Electrónico (pantalla digital)</option>
+        <option value="dial">Electromecánico (carátula con diales)</option>
+      </select>
+      <select id="dialN" class="hide" aria-label="Número de diales"><option value="5">5 diales</option><option value="4">4 diales</option></select></div>
+      <button id="scanBtn" class="sec" type="button">📷 Escanear con cámara en vivo</button>
+      <label for="scanFile" class="btnlike" id="scanLbl">🖼️ Tomar foto con la cámara del celular</label>
+      <input id="scanFile" type="file" accept="image/*" capture="environment" hidden>
+      <div id="camBox" class="cam hide" role="dialog" aria-label="Cámara">
+        <div class="camwrap"><video id="camVid" playsinline muted autoplay></video><div class="guide"></div><svg id="camSvg" class="camsvg" preserveAspectRatio="none"></svg></div>
+        <p>Pon solo los números de la pantalla dentro del recuadro amarillo. Sin reflejos, recto y enfocado. Mantén firme el celular al capturar.</p>
+        <div class="row"><button id="camShot" type="button">Capturar</button><button id="camX" class="sec" type="button">Cancelar</button></div>
+        <div id="camMsg" role="status"></div>
+      </div>
+      <div id="scanMsg" role="status"></div>
+      <div id="scanRes" class="chips"></div>
+      <div id="markBox" class="dialbox hide">
+        <p class="lbl" id="mkTxt" style="margin:0 0 8px"></p>
+        <canvas id="mkCv" class="mkcv"></canvas>
+        <div class="row" style="margin-top:8px"><button id="mkReset" class="sec" type="button">Volver a marcar</button></div>
+      </div>
+      <div id="dialBox" class="dialbox hide">
+        <img id="dialImg" class="dialimg" alt="Foto de la carátula">
+        <p class="lbl" style="margin:0">Las líneas rojas de la foto muestran la aguja que detecté en cada dial. Revisa que coincidan; los diales en rojo son dudosos. Corrige abajo lo que haga falta.</p>
+        <div id="dials" class="dials"></div>
+        <button id="dialUse" type="button">Usar esta lectura (corregida)</button>
+      </div>
+    </div>
+    <div class="anoms">
+      <button id="anSin" class="sec" type="button">Anomalías sin lectura</button>
+      <button id="anCon" class="sec" type="button">Anomalías con lecturas</button>
+    </div>
+    <div id="anList" class="anlist hide" role="group" aria-label="Anomalías sin lectura"></div>
+    <div id="anListCon" class="anlist hide" role="group" aria-label="Anomalías con lecturas"></div>
+    <div id="msg" role="status"></div>
+  </section>
+
+  <section class="panel hide" id="fin">
+    <h1>¡Terminaste!</h1>
+    <div id="registro"></div>
+    <div class="scroll"><table id="resumen"></table></div>
+    <button id="again">Volver a empezar</button>
+  </section>
+</main>
+
+</div>
+<div id="clase" hidden>
+<main>
+<button class="back" type="button" data-go="menu">← Inicio</button>
+<h1>Práctica de lectura de medidor</h1>
+<p class="sub">Lee los diales de izquierda a derecha, escribe la lectura en kWh y registra tu respuesta.</p>
+
+<section class="meter" aria-label="Medidor">
+  <div class="window"><div class="dials" id="cdials"></div></div>
+  <div class="discwrap">
+    <svg viewBox="0 0 150 56" aria-hidden="true">
+      <defs><clipPath id="clip"><rect width="150" height="56" rx="8"/></clipPath></defs>
+      <rect width="150" height="56" rx="8" fill="#cfd6da"/>
+      <g clip-path="url(#clip)"><ellipse cx="75" cy="28" rx="64" ry="64" fill="#b9bdbf" stroke="#8a8f92"/>
+      <rect id="mark" x="70" y="-40" width="10" height="38" fill="#111"/></g>
+    </svg>
+  </div>
+</section>
+
+<section class="panel" aria-label="Práctica">
+  <div class="stats">
+    <div class="stat"><b id="okN">0</b><span>Aciertos</span></div>
+    <div class="stat"><b id="badN">0</b><span>Errores</span></div>
+    <div class="stat"><b id="clock">00:00.0</b><span>Cronómetro</span></div>
+  </div>
+  <div class="row">
+    <label for="ans">Lectura (kWh)</label>
+    <input id="ans" type="number" inputmode="numeric" min="0" max="99999" step="1" placeholder="00000">
+    <button id="csend" class="main">Registrar</button>
+    <span id="digits" class="hint"></span>
+  </div>
+  <p id="cmsg" role="status" aria-live="polite"></p>
+  <div class="row" role="group" aria-label="Número de carátulas"><span>¿Cuántas carátulas quieres practicar?</span><button type="button" class="nopt" data-n="4" aria-pressed="false">4</button><button type="button" class="nopt" data-n="5" aria-pressed="false">5</button><button type="button" class="nopt" data-n="9" aria-pressed="false">Ambas al azar</button></div>
+  <div class="row">
+    <button id="cstart" class="main">Iniciar</button>
+    <button id="pause">Pausar</button>
+    <button id="reset">Reiniciar</button>
+  </div>
+</section>
+</main>
+
+</div>
+<script>
+(function(){
+
+/* [folio, medidor, lectura (null = sin lectura), anomalía] */
+const DATA = [[1,"784BE9",12,null],[2,"LR643B",0,null],[3,"022WNH",1,null],[4,"553P0B",10,null],[5,"KB315K",0,null],[6,"78G18L",11505,null],[7,"344CLJ",8799,null],[8,"572NM6",356,null],[9,"LR555C",5091,null],[10,"GUD850",620,null],[11,"550YPG",null,"DISPLAY APAGADO"],[12,"C36927",4625,"ALTA"],[13,"D353459",2363,null],[14,"F327351",726,null],[15,"D083550",6829,null],[16,"E828012",1250,null],[17,"E106954",6924,null],[18,"2F2B05",75639,"MEDIDOR NO TRABAJA"],[19,"E544748",1192,null],[20,"B634471",5298,null],[21,"E535838",9821,"MEDIDOR NO TRABAJA"],[22,"E682850",188,null],[23,"F097687",10,null],[24,"E551416",9152,null],[25,"8R676K",39855,"CRISTAL ROTO"],[26,"E830170",37,null],[27,"E832796",111,"SIN SELLO"],[28,"C356926",3075,"SIN SELLO"],[29,"D167912",174,"SIN SELLO"],[30,"13RA85",28526,"MEDIDOR NO TRABAJA"],[31,"B879908",9603,"SIN SELLO"],[32,"E906475",6100,"SIN SELLO"],[33,"73TG17",11831,"SIN SELLO"],[34,"29LG49",32922,"SIN SELLO"],[35,"BF977N",0,"DISPLAY APAGADO"],[36,"C279826",32,"SIN SELLO"],[37,"D366284",5691,"SIN SELLO"],[38,"B594182",1075,"SIN SELLO"],[39,"A550468",1172,"SIN SELLO"],[40,"6LW222",76800,"MEDIDOR NO TRABAJA"],[41,"B616880",3642,"SIN SELLO"],[42,"B216884",7252,"SIN SELLO"],[43,"E415745",0,"MED NO TRABAJA"],[44,"E953725",4872,"SIN SELLO"],[45,"F342015",1834,"MEDIDOR NO TRABAJA"],[46,"B776951",6903,"SIN SELLO"],[47,"E140063",126,"SIN SELLO"],[48,"N24N91",46287,"SIN SELLO"],[49,"E831882",269,"SIN SELLO"],[50,"E665743",4250,"ALTA"],[51,"D066978",1,"MEDIDOR NO TRABAJA"],[52,"E255563",7062,"SIN SELLO"],[53,"C152003",976,"MED DESIGUAL"],[54,"C997680",173,"SIN SELLO"],[55,"2F6T73",20585,"SIN SELLO"],[56,"7J738J",15945,"SIN SELLO"],[57,"0B807K",24642,"SIN SELLO"],[58,"D854482",4102,"SIN SELLO"],[59,"E830171",47,"SIN SELLO"],[60,"91B3A4",24347,"DESCALIBRADO"],[61,"1YR916",44643,"SIN SELLO"],[62,"F243605",3652,"DESCALIBRADO"],[63,"8Y143U",4380,"SIN SELLO"],[64,"B008239",6435,"ALTA"],[65,"M169L9",35524,"SIN SELLO"],[66,"2H22H4",23983,"SIN SELLO"],[67,"11TH48",22608,null],[68,"0C123U",37372,"SIN SELLO"],[69,"B173847",null,"NO HAY MEDIDOR"],[70,"7HG006",3916,"SIN SELLO"],[71,"D273236",829,"SIN SELLO"],[72,"3D6N06",8380,"SIN SELLO"],[73,"V281Y8",0,"MEDIDOR NO TRABAJA"],[74,"F324515",1998,null],[75,"4B1C52",29605,"DESCALIBRADO"],[76,"5L37U1",26231,"SIN SELLO"],[77,"711484",321,"SIN SELLO"],[78,"28XY01",34801,"SIN SELLO"],[79,"0H4L70",29020,"SIN SELLO"],[80,"J39M63",11213,"SIN SELLO"],[81,"9G263W",77039,"SIN SELLO"],[82,"0B5G83",26229,"SIN SELLO"],[83,"7HG312",23533,"SIN SELLO"],[84,"4H93A1",38940,"SIN SELLO"],[85,"CN559M",0,"DISPLAY APAGADO"],[86,"X587553",26645,"MEDIDOR NO TRABAJA"],[87,"0N97J0",41970,"SIN SELLO"],[88,"9H323D",2671,"SIN SELLO"],[89,"5T91L0",28206,"SIN SELLO"],[90,"59CF32",24717,"SIN SELLO"],[91,"M169L2",41803,"D"],[92,"3K5D47",12007,"SIN SELLO"],[93,"0E237L",18797,"SIN SELLO"],[94,"28TV94",18182,"MEDIDOR NO TRABAJA"],[95,"D651832",4368,"SIN SELLO"],[96,"C686105",3226,"ALTA"],[97,"03P0U9",60005,"SIN SELLO"],[98,"0C767U",0,"MEDIDOR NO TRABAJA"],[99,"C565347",2429,"SIN SELLO"],[100,"9CB420",66861,"SIN SELLO"],[101,"6D7E11",0,"NO HAY MEDIDOR"],[102,"0262817",1339,"SIN SELLO"],[103,"2DX746",36147,"SIN SELLO"],[104,"6P32L7",18224,"SIN SELLO"],[105,"5G645F",14560,"SIN SELLO"],[106,"3UH496",27975,"MEDIDOR NO TRABAJA"],[107,"F396264",952,"SIN SELLO"],[108,"6T476L",29293,"MEDIDOR NO TRABAJA"],[109,"000000",22145,"SIN SELLO"],[110,"V323W9",780,"MEDIDOR NO TRABAJA"],[111,"9H565D",6918,"SIN SELLO"],[112,"B409303",36861,"MED DESIGUAL"],[113,"1J0N69",25075,"SIN SELLO"],[114,"2H7B14",42893,"SIN SELLO"],[115,"C464497",9037,"SIN SELLO"],[116,"0LG858",2250,"SIN SELLO"],[117,"E830597",1,"SIN SELLO"],[118,"4NG014",76186,"MEDIDOR NO TRABAJA"],[119,"95TU72",16148,"SIN SELLO"],[120,"C034660",1435,"SIN SELLO"],[121,"0N5T45",33140,"SIN SELLO"],[122,"5Y541H",13732,"SIN SELLO"],[123,"2U623V",31898,"MEDIDOR NO TRABAJA"],[124,"44BE27",15026,"SIN SELLO"],[125,"6X53A5",24174,"SIN SELLO"],[126,"X100016",0,"NO HAY MEDIDOR"],[127,"7U4G92",27738,"MEDIDOR NO TRABAJA"],[128,"B279951",7410,"SIN SELLO"],[129,"R6V504",3659,"SIN SELLO"],[130,"8L3E99",31031,"SIN SELLO"],[131,"08PN13",28411,"SIN SELLO"],[132,"000001",4253,"MEDIDOR NO TRABAJA"],[133,"1D7P84",9002,"SIN SELLO"],[135,"X737E6",10195,null],[137,"B712666",128,"SIN SELLO"],[138,"3HG707",48484,"SIN SELLO"],[139,"1A77Y0",26892,"SIN SELLO"],[140,"1C83A4",36238,"SIN SELLO"],[141,"33VP37",8861,"SIN SELLO"],[142,"4J2N49",65640,"SIN SELLO"],[143,"4E49H6",70064,"SIN SELLO"],[145,"857907",7188,"ALTA"],[146,"E958774",2823,"SIN SELLO"],[147,"M11D92",8830,"SIN SELLO"],[148,"C271H0",36635,"SIN SELLO"],[149,"94RJ50",29579,"SIN SELLO"],[150,"7R933K",41009,"MEDIDOR NO TRABAJA"],[151,"D110876",3499,"SIN SELLO"],[152,"E109786",2545,"MED DESIGUAL"],[153,"9U4T20",7281,"SIN SELLO"],[154,"N973H5",47480,"SIN SELLO"],[155,"9U4W59",33018,"SIN SELLO"],[156,"156",null,"UI DIRECTO"],[157,"0A66W4",0,"UI INVERTIDO"],[159,"82VF30",14013,"SIN SELLO"],[160,"8V387F",6237,"SIN SELLO"]];
+
+const $ = id => document.getElementById(id);
+let user, i, aciertos, errores, errPreg, t0, timer, reg, inicio;
+
+function fmt(s){ const m=Math.floor(s/60); return m+":"+String(Math.floor(s%60)).padStart(2,"0"); }
+function pintar(){
+  $("time").textContent = fmt((Date.now()-t0)/1000);
+  $("ok").firstElementChild.textContent = aciertos;
+  $("bad").firstElementChild.textContent = errores;
+}
+function mostrar(sec){ ["inicio","juego","fin"].forEach(s=>$(s).classList.toggle("hide", s!==sec)); }
+
+function empezar(){
+  const nom=$("nombre").value.trim(), num=$("idnum").value.trim();
+  if(!nom||!num){ $("err").textContent="Escribe tu nombre y tu "+$("tipo").value+"."; return; }
+  $("err").textContent=""; user={nom,tipo:$("tipo").value,num};
+  const n=parseInt($("desde").value)||1; inicio=Math.max(0,DATA.findIndex(d=>d[0]>=n)); if(inicio<0) inicio=0;
+  i=inicio; aciertos=0; errores=0; reg=[];
+  t0=Date.now(); clearInterval(timer); timer=setInterval(pintar,250); pintar();
+  mostrar("juego"); cargar();
+}
+function cargar(){
+  const d=DATA[i];
+  $("folio").textContent = "Folio " + d[0] + " · medidor " + (i+1) + " de " + DATA.length;
+  $("pos").textContent = (i+1)+"/"+DATA.length;
+  $("medidor").textContent = d[1] || "(sin número de medidor)";
+  $("bar").style.width = (i/DATA.length*100)+"%";
+  $("msg").textContent="";
+  cerrarLista(); $("resp").value=""; $("scanMsg").textContent=""; $("scanMsg").className=""; $("scanRes").innerHTML=""; $("dialBox").classList.add("hide"); $("markBox").classList.add("hide"); $("resp").focus();
+  errPreg=0; reg[i]={t:Date.now()};
+}
+function acierto(){
+  const d=DATA[i];
+  aciertos++; reg[i].seg=(Date.now()-reg[i].t)/1000; reg[i].err=errPreg;
+  i++;
+  if(i>=DATA.length) return terminar();
+  cargar(); pintar();
+}
+function fallo(){
+  errores++; errPreg++;
+  $("msg").style.color="var(--bad)"; $("msg").textContent="Incorrecto, inténtalo de nuevo.";
+  pintar();
+}
+
+function responder(){
+  const txt=$("resp").value.trim().replace(",",".");
+  if(txt==="") return;
+  const n=Number(txt), v=DATA[i][2]===null?0:DATA[i][2];
+  if(!isNaN(n) && n>=0 && Math.abs(n-v)<=1) acierto();
+  else { fallo(); $("resp").select(); }
+}
+const ANOM_SIN=["Casa cerrada","No encontré domicilio","Comunicación interrumpida","UI servicio directo","No hay medidor","Resistencia a toma de lectura","Display apagado","Medidor no trabaja","Manecillas descalibradas","Demanda averiada","Puerto infrarrojo / medidor dañado","UI medidor invertido","Derivación antes de medición","Contingencia"];
+/* anomalía de cada folio (como viene en DATA) → opción correcta de la lista */
+const ANOM_MAP={"DISPLAY APAGADO":"Display apagado","MEDIDOR NO TRABAJA":"Medidor no trabaja","MED NO TRABAJA":"Medidor no trabaja","DESCALIBRADO":"Manecillas descalibradas","D":"Manecillas descalibradas","NO HAY MEDIDOR":"No hay medidor","UI DIRECTO":"UI servicio directo","UI INVERTIDO":"UI medidor invertido"};
+function cerrarLista(){ $("anList").classList.add("hide"); $("anSin").classList.remove("on"); $("anListCon").classList.add("hide"); $("anCon").classList.remove("on"); }
+function anomSinLectura(){
+  const l=$("anList"), abrir=l.classList.contains("hide");
+  cerrarLista();
+  if(!abrir) return;
+  l.classList.remove("hide"); $("anSin").classList.add("on");
+}
+function elegirAnom(op){ if(ANOM_MAP[DATA[i][3]]===op) acierto(); else fallo(); }
+$("anList").innerHTML=ANOM_SIN.map((o,k)=>`<button type="button" class="sec" data-k="${k}">${o}</button>`).join("");
+$("anList").addEventListener("click",e=>{ const b=e.target.closest("button[data-k]"); if(b) elegirAnom(ANOM_SIN[+b.dataset.k]); });
+const ANOM_CON=["Servicio sin uso","UI derivación","No corresponde lectura","Fuera de ruta","Sin sello","Cristal roto","Número de medidor desigual / carátulas diferentes","Cubierta opaca"];
+/* anomalía de cada folio (como viene en DATA) → opción correcta de la lista "con lectura" */
+const ANOM_CON_MAP={"SIN SELLO":"Sin sello","CRISTAL ROTO":"Cristal roto","MED DESIGUAL":"Número de medidor desigual / carátulas diferentes"};
+$("anListCon").innerHTML=ANOM_CON.map((o,k)=>`<button type="button" class="sec" data-k="${k}">${o}</button>`).join("");
+$("anListCon").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-k]"); if(!b) return;
+  const op=ANOM_CON[+b.dataset.k], d=DATA[i];
+  /* solo se reporta la anomalía: no se califica ni cuenta como acierto o error.
+     El medidor avanza hasta que se escriba la lectura correcta. */
+  reg[i].rep=op;
+  cerrarLista();
+  $("msg").style.color="var(--ok)"; $("msg").textContent="Folio "+d[0]+": reportando anomalía «"+op+"». Escribe la lectura para continuar.";
+  $("resp").focus();
+});
+function anomConLectura(){
+  const l=$("anListCon"), abrir=l.classList.contains("hide");
+  cerrarLista();
+  if(!abrir) return;
+  l.classList.remove("hide"); $("anCon").classList.add("on");
+}
+
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function cargarReg(){ try{ return JSON.parse(localStorage.getItem("registros")||"[]"); }catch(e){ return []; } }
+function guardarReg(r){ try{ const a=cargarReg(); a.push(r); localStorage.setItem("registros",JSON.stringify(a)); }catch(e){} }
+
+function terminar(){
+  clearInterval(timer); pintar();
+  const total=(Date.now()-t0)/1000;
+  let h=`<tr><th>Folio</th><th>Medidor</th><th>Lectura</th><th>Tiempo</th><th>Errores</th></tr>`;
+  for(let k=inicio;k<DATA.length;k++){
+    const d=DATA[k], r=reg[k];
+    h+=`<tr><td>${d[0]}</td><td>${d[1]||"—"}</td><td>${d[2]===null?0:d[2]}${d[3]?" · "+d[3]:""}</td><td>${r.seg.toFixed(1)} s</td><td>${r.err}</td></tr>`;
+  }
+  h+=`<tr><th colspan="3">Total: ${aciertos} aciertos</th><th>${fmt(total)}</th><th>${errores}</th></tr>`;
+  $("resumen").innerHTML=h;
+  const rec={nom:user.nom,tipo:user.tipo,num:user.num,fecha:new Date().toLocaleString("es-MX"),tiempo:fmt(total),aciertos,errores};
+  guardarReg(rec);
+  const hi=cargarReg().slice(-10).reverse().map(r=>`<tr><td>${esc(r.nom)}</td><td>${esc(r.tipo)} ${esc(r.num)}</td><td>${esc(r.fecha)}</td><td>${esc(r.tiempo)}</td><td>${esc(r.aciertos)}</td><td>${esc(r.errores)}</td></tr>`).join("");
+  $("registro").innerHTML=`<p><b>${esc(rec.nom)}</b> · ${esc(rec.tipo)} ${esc(rec.num)}<br>${esc(rec.fecha)}<br>Tiempo ${esc(rec.tiempo)} · ${aciertos} aciertos · ${errores} errores</p><h2>Registros guardados</h2><div class="scroll"><table><tr><th>Nombre</th><th>RTT/RPE</th><th>Fecha</th><th>Tiempo</th><th>Aciertos</th><th>Errores</th></tr>${hi}</table></div><h2>Detalle por medidor</h2>`;
+  mostrar("fin");
+}
+
+{ const u=cargarReg().slice(-1)[0]; if(u){ $("nombre").value=u.nom; $("tipo").value=u.tipo; $("idnum").value=u.num; } }
+
+/* ===== Escáner de medidor con cámara ===== */
+let tessP=null, tessW=null, stream=null;
+const GEO_LCD=[.08,.38,.84,.24];
+const DIRS={5:[1,-1,1,-1,1],4:[-1,1,-1,1]};   /* 1 = horario; el dial de unidades (derecha) siempre horario */
+const tipoScan=()=>$("scanTipo").value;
+const nDiales=()=>+$("dialN").value;
+
+function cargarTess(){
+  if(window.Tesseract) return Promise.resolve();
+  if(tessP) return tessP;
+  tessP=new Promise((ok,no)=>{
+    const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+    s.onload=ok; s.onerror=()=>{tessP=null;no(new Error("lib"));};
+    document.head.appendChild(s);
+  });
+  return tessP;
+}
+async function worker(psm){
+  await cargarTess();
+  if(!tessW) tessW=await Tesseract.createWorker("eng");
+  await tessW.setParameters({tessedit_char_whitelist:"0123456789",tessedit_pageseg_mode:psm});
+  return tessW;
+}
+function preparar(src){
+  const k=Math.min(2,900/src.width), W=Math.round(src.width*k), H=Math.round(src.height*k), M=24;
+  const c=document.createElement("canvas"); c.width=W+2*M; c.height=H+2*M;
+  const x=c.getContext("2d"); x.drawImage(src,M,M,W,H);
+  const d=x.getImageData(0,0,c.width,c.height), p=d.data, g=new Float32Array(p.length/4);
+  let lo=255,hi=0;
+  for(let q=0,j=0;q<p.length;q+=4,j++){ const v=.299*p[q]+.587*p[q+1]+.114*p[q+2]; g[j]=v; if(v<lo)lo=v; if(v>hi)hi=v; }
+  const r=Math.max(1,hi-lo), out=[];
+  [false,true].forEach(inv=>{
+    for(let q=0,j=0;q<p.length;q+=4,j++){ let v=(g[j]-lo)*255/r; if(inv)v=255-v; p[q]=p[q+1]=p[q+2]=v; p[q+3]=255; }
+    x.putImageData(d,0,0);
+    const bg=p[0]; x.fillStyle="rgb("+bg+","+bg+","+bg+")";
+    x.fillRect(0,0,c.width,M); x.fillRect(0,c.height-M,c.width,M); x.fillRect(0,0,M,c.height); x.fillRect(c.width-M,0,M,c.height);
+    out.push(new Promise(o=>c.toBlob(o,"image/png")));
+  });
+  return Promise.all(out);
+}
+function scanMsg(t,c){ const m=$("scanMsg"); m.textContent=t; m.className=c||""; }
+function camMsg(t){ $("camMsg").textContent=t; }
+
+/* ---------- PANTALLAS ELECTRÓNICAS: OCR + votación ---------- */
+async function leerYVotar(canvases,psm,minVotos){
+  const serial=String(DATA[i][1]||"").replace(/\D/g,"");
+  const votos=new Map(); let total=0;
+  const w=await worker(psm);
+  for(let n=0;n<canvases.length;n++){
+    const blobs=await preparar(canvases[n]);
+    for(const b of blobs){
+      const {data}=await w.recognize(b);
+      total++;
+      const t=(data.text||"").replace(/\D/g,"");
+      if(t.length<2||t.length>8||t===serial) continue;
+      const v=votos.get(t)||{n:0,conf:0}; v.n++; v.conf+=data.confidence; votos.set(t,v);
+    }
+    camMsg("Leyendo… "+(n+1)+"/"+canvases.length);
+  }
+  const lista=[...votos.entries()].map(([t,v])=>({t,n:v.n,conf:v.conf/v.n})).sort((a,b)=>b.n-a.n||b.conf-a.conf);
+  return {lista,total,ok:lista.length>0&&lista[0].n>=minVotos&&(lista.length===1||lista[0].n>lista[1].n)&&lista[0].conf>=50};
+}
+function mostrarResultado(r,verificable){
+  $("scanBtn").disabled=false; $("scanRes").innerHTML="";
+  if(!r.lista.length){ scanMsg("No pude leer números. Acércate, evita reflejos y encuadra solo la pantalla. Repite la foto.","bad"); return; }
+  const t=r.lista[0];
+  $("resp").value=t.t;
+  if(r.ok) scanMsg("✔ Lectura verificada: "+t.t+" ("+t.n+" de "+r.total+" lecturas coinciden). Compárala con el medidor y presiona Responder.","ok");
+  else scanMsg("⚠ NO verificada: mejor intento "+t.t+" ("+t.n+" de "+r.total+" coinciden)."+(verificable?" Repite la foto o escríbela tú.":" Revísala con cuidado o escríbela tú."),"bad");
+  if(r.lista.length>1) $("scanRes").innerHTML=r.lista.slice(1,4).map(x=>`<button type="button" class="sec">${x.t}</button>`).join("");
+}
+
+/* ---------- CARÁTULAS: detección de agujas ---------- */
+/* posición de los círculos-guía (en píxeles del video) */
+function geoDiales(vw,vh,n){
+  const colW=vw*.88/n, R=Math.min(colW*.46,vh*.4), cy=vh*.5;
+  return Array.from({length:n},(_,k)=>({x:vw*.06+colW*(k+.5),y:cy,r:R}));
+}
+/* ángulo (grados, horario desde arriba) de la aguja dentro de un dial */
+function anguloAguja(src,g){
+  const S=200, h=S/2, c=document.createElement("canvas"); c.width=c.height=S;
+  const x=c.getContext("2d"); x.drawImage(src,g.x-g.r,g.y-g.r,2*g.r,2*g.r,0,0,S,S);
+  const d=x.getImageData(0,0,S,S).data, G=new Float32Array(S*S);
+  let lo=255,hi=0;
+  for(let yy=0;yy<S;yy++)for(let xx=0;xx<S;xx++){
+    const q=(yy*S+xx)*4, v=.299*d[q]+.587*d[q+1]+.114*d[q+2]; G[yy*S+xx]=v;
+    if(Math.hypot(xx-h,yy-h)<.7*h){ if(v<lo)lo=v; if(v>hi)hi=v; }
+  }
+  const rg=Math.max(1,hi-lo), sc=new Float32Array(360);
+  for(let a=0;a<360;a++){
+    const sa=Math.sin(a*Math.PI/180), ca=Math.cos(a*Math.PI/180); let sum=0,cnt=0;
+    for(let r=.16*h;r<=.66*h;r+=1){
+      const px=Math.round(h+r*sa), py=Math.round(h-r*ca);
+      sum+=(hi-G[py*S+px])/rg; cnt++;
+    }
+    sc[a]=sum/cnt;
+  }
+  const sm=new Float32Array(360);
+  for(let a=0;a<360;a++){ let t=0; for(let k=-2;k<=2;k++) t+=sc[(a+k+360)%360]; sm[a]=t/5; }
+  let best=0; for(let a=1;a<360;a++) if(sm[a]>sm[best]) best=a;
+  const med=[...sm].sort((a,b)=>a-b)[180];
+  return {ang:best,fuerza:sm[best]-med};
+}
+/* convierte ángulos en dígitos usando la posición de la aguja del dial vecino (regla del acarreo) */
+function leerDiales(src,n,geo,rot){
+  rot=rot||0;
+  const pos=[], fuerza=[], angs=[];
+  geo.forEach((g,k)=>{
+    const a=anguloAguja(src,g); angs.push(a.ang); fuerza.push(a.fuerza);
+    const ac=(a.ang-rot+720)%360; pos.push((DIRS[n][k]===1?ac:(360-ac)%360)/36);
+  });
+  const digs=new Array(n), dud=new Array(n).fill(false);
+  digs[n-1]=Math.floor(pos[n-1])%10; dud[n-1]=fuerza[n-1]<.15;
+  for(let k=n-2;k>=0;k--){
+    const e=pos[k]-pos[k+1]/10, rd=Math.round(e);
+    digs[k]=((rd%10)+10)%10; dud[k]=Math.abs(e-rd)>.28||fuerza[k]<.15;
+  }
+  return {digs,dud,angs};
+}
+function dibujarDiales(src,geo,angs,digs){
+  const k=Math.min(1,900/src.width), c=document.createElement("canvas"); c.width=Math.round(src.width*k); c.height=Math.round(src.height*k);
+  const x=c.getContext("2d"); x.drawImage(src,0,0,c.width,c.height);
+  geo.forEach((g,j)=>{
+    const cx=g.x*k, cy=g.y*k, r=g.r*k, a=angs[j]*Math.PI/180;
+    x.lineWidth=3; x.strokeStyle="#FFD23F"; x.beginPath(); x.arc(cx,cy,r,0,7); x.stroke();
+    x.strokeStyle="#FF3355"; x.lineWidth=4; x.beginPath(); x.moveTo(cx,cy); x.lineTo(cx+.66*r*Math.sin(a),cy-.66*r*Math.cos(a)); x.stroke();
+    x.fillStyle="#FFD23F"; x.font="bold "+Math.round(r*.45)+"px monospace"; x.textAlign="center"; x.fillText(digs[j],cx,cy-r-6);
+  });
+  return c.toDataURL("image/jpeg",.9);
+}
+function armarDiales(n,digs,dud){
+  $("dials").innerHTML=Array.from({length:n},(_,k)=>`<select aria-label="Dial ${k+1}" class="${dud&&dud[k]?"dud":""}"><option value="">?</option>${[0,1,2,3,4,5,6,7,8,9].map(d=>`<option${digs&&digs[k]===d?" selected":""}>${d}</option>`).join("")}</select>`).join("");
+}
+function mostrarDiales(url,n,digs,dud){
+  $("dialImg").src=url; armarDiales(n,digs,dud); $("dialBox").classList.remove("hide");
+}
+
+/* ---------- Cámara ---------- */
+function cerrarCam(){
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  $("camVid").srcObject=null; $("camBox").classList.add("hide"); document.body.style.overflow="";
+}
+async function abrirCam(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false});
+  }catch(e){ stream=null; scanMsg("No se pudo abrir la cámara en vivo (permiso denegado o archivo abierto sin HTTPS). Toca «Tomar foto con la cámara del celular».","bad"); return; }
+  const v=$("camVid"); v.srcObject=stream;
+  await new Promise(r=>{ if(v.readyState>=1) r(); else v.onloadedmetadata=r; });
+  await v.play().catch(()=>{});
+  const dial=tipoScan()==="dial", gd=document.querySelector("#camBox .guide"), svg=$("camSvg");
+  svg.innerHTML="";
+  if(dial){
+    gd.style.display="none";
+    svg.setAttribute("viewBox","0 0 "+v.videoWidth+" "+v.videoHeight);
+    svg.innerHTML=geoDiales(v.videoWidth,v.videoHeight,nDiales()).map(g=>`<circle cx="${g.x}" cy="${g.y}" r="${g.r}" fill="none" stroke="#FFD23F" stroke-width="${v.videoWidth/200}"/><circle cx="${g.x}" cy="${g.y}" r="${v.videoWidth/150}" fill="#FFD23F"/>`).join("");
+  }else{
+    gd.style.display=""; gd.style.left=GEO_LCD[0]*100+"%"; gd.style.top=GEO_LCD[1]*100+"%"; gd.style.width=GEO_LCD[2]*100+"%"; gd.style.height=GEO_LCD[3]*100+"%";
+  }
+  document.querySelector("#camBox p").textContent=dial
+    ?"Ajusta la distancia para que cada dial quede dentro de su círculo amarillo (el punto es el centro de la aguja). De frente, enfocado y sin reflejos. Mantén firme el celular."
+    :"Pon solo los números de la pantalla dentro del recuadro amarillo. Sin reflejos, recto y enfocado. Mantén firme el celular al capturar.";
+  camMsg(""); $("camShot").disabled=false; $("camBox").classList.remove("hide"); document.body.style.overflow="hidden";
+}
+async function capturar(){
+  const v=$("camVid"); if(!v.videoWidth) return;
+  const dial=tipoScan()==="dial", vw=v.videoWidth, vh=v.videoHeight;
+  $("camShot").disabled=true; const frames=[];
+  for(let n=0;n<5;n++){
+    camMsg("Capturando… no muevas el celular ("+(n+1)+"/5)");
+    const c=document.createElement("canvas");
+    if(dial){ c.width=vw; c.height=vh; c.getContext("2d").drawImage(v,0,0); }
+    else{
+      const g=GEO_LCD, sw=vw*g[2], sh=vh*g[3];
+      c.width=Math.round(sw); c.height=Math.round(sh); c.getContext("2d").drawImage(v,vw*g[0],vh*g[1],sw,sh,0,0,c.width,c.height);
+    }
+    frames.push(c); await new Promise(r=>setTimeout(r,250));
+  }
+  cerrarCam(); $("scanBtn").disabled=true; $("scanRes").innerHTML="";
+  try{
+    if(dial){
+      const n=nDiales(), geo=geoDiales(vw,vh,n), votos=new Map();
+      frames.forEach(f=>{ const r=leerDiales(f,n,geo), k=r.digs.join(""); const o=votos.get(k)||{n:0,r}; o.n++; votos.set(k,o); });
+      const lista=[...votos.entries()].sort((a,b)=>b[1].n-a[1].n), top=lista[0][1], k=lista[0][0];
+      const ok=top.n>=3&&(lista.length===1||top.n>lista[1][1].n)&&!top.r.dud.some(Boolean);
+      $("resp").value=k;
+      mostrarDiales(dibujarDiales(frames[frames.length-1],geo,top.r.angs,top.r.digs),n,top.r.digs,top.r.dud);
+      $("scanBtn").disabled=false;
+      if(ok) scanMsg("✔ Lectura detectada y consistente: "+k+" ("+top.n+" de 5 fotos coinciden). Confirma con la foto que las líneas rojas siguen las agujas y presiona Responder.","ok");
+      else scanMsg("⚠ NO verificada: mejor intento "+k+" ("+top.n+" de 5 fotos coinciden"+(top.r.dud.some(Boolean)?"; hay diales dudosos en rojo":"")+"). Corrige los diales o repite la foto.","bad");
+    }else{
+      camMsg("Cargando lector…");
+      const r=await leerYVotar(frames,"7",3);
+      mostrarResultado(r,true);
+    }
+  }catch(e){
+    $("scanBtn").disabled=false;
+    scanMsg(e&&e.message==="lib"?"No se pudo cargar el lector. Revisa tu conexión a internet.":"No se pudo procesar la foto. Intenta de nuevo.","bad");
+  }
+}
+/* foto normal (cámara de Android): el usuario marca dos puntos y se analiza esa zona */
+let mk={c:null,pts:[],k:1};
+function iniciarMarcas(c){
+  mk={c,pts:[],k:Math.min(1,1000/c.width)};
+  const cv=$("mkCv"); cv.width=Math.round(c.width*mk.k); cv.height=Math.round(c.height*mk.k);
+  $("mkTxt").textContent=tipoScan()==="dial"
+    ?"Toca el CENTRO del primer dial (izquierda) y luego el CENTRO del último dial (derecha)."
+    :"Toca la esquina SUPERIOR IZQUIERDA y luego la INFERIOR DERECHA de los números de la pantalla.";
+  pintarMarcas(); $("markBox").classList.remove("hide");
+}
+function pintarMarcas(){
+  const cv=$("mkCv"), x=cv.getContext("2d"); x.drawImage(mk.c,0,0,cv.width,cv.height);
+  x.fillStyle="#FFD23F"; x.strokeStyle="#FF3355"; x.lineWidth=3;
+  mk.pts.forEach(p=>{ x.beginPath(); x.arc(p.x*mk.k,p.y*mk.k,8,0,7); x.fill(); x.stroke(); });
+  if(mk.pts.length===2&&tipoScan()==="lcd"){ const [a,b]=mk.pts; x.strokeRect(a.x*mk.k,a.y*mk.k,(b.x-a.x)*mk.k,(b.y-a.y)*mk.k); }
+}
+async function analizarMarcas(){
+  $("scanBtn").disabled=true; $("scanRes").innerHTML=""; scanMsg("Analizando…");
+  try{
+    let [a,b]=mk.pts;
+    if(tipoScan()==="dial"){
+      if(b.x<a.x) [a,b]=[b,a];
+      const n=nDiales(), dx=b.x-a.x, dy=b.y-a.y;
+      if(dx<n*20){ scanMsg("Los puntos quedaron muy juntos. Marca el centro del primer y del último dial.","bad"); $("scanBtn").disabled=false; return; }
+      const r=dx/(n-1)*.46, geo=Array.from({length:n},(_,k)=>({x:a.x+dx*k/(n-1),y:a.y+dy*k/(n-1),r}));
+      const res=leerDiales(mk.c,n,geo,Math.atan2(dy,dx)*180/Math.PI);
+      $("resp").value=res.digs.join("");
+      mostrarDiales(dibujarDiales(mk.c,geo,res.angs,res.digs),n,res.digs,res.dud);
+      $("markBox").classList.add("hide");
+      scanMsg("⚠ Lectura de UNA sola foto, sin verificar: "+res.digs.join("")+". Confirma con las líneas rojas de la foto y corrige lo dudoso.","bad");
+    }else{
+      const x0=Math.min(a.x,b.x), y0=Math.min(a.y,b.y), w=Math.abs(b.x-a.x), h=Math.abs(b.y-a.y);
+      if(w<20||h<10){ scanMsg("El recuadro quedó muy pequeño. Marca las dos esquinas de los números.","bad"); $("scanBtn").disabled=false; return; }
+      const frames=[0,.06,.12].map(m=>{
+        const px=Math.max(0,x0-w*m), py=Math.max(0,y0-h*m), pw=Math.min(mk.c.width-px,w*(1+2*m)), ph=Math.min(mk.c.height-py,h*(1+2*m));
+        const c=document.createElement("canvas"); c.width=Math.round(pw); c.height=Math.round(ph);
+        c.getContext("2d").drawImage(mk.c,px,py,pw,ph,0,0,c.width,c.height); return c;
+      });
+      const r=await leerYVotar(frames,"7",3); r.ok=false;
+      mostrarResultado(r,false); $("markBox").classList.add("hide");
+    }
+  }catch(e){
+    scanMsg(e&&e.message==="lib"?"No se pudo cargar el lector. Revisa tu conexión a internet.":"No se pudo procesar la foto. Intenta de nuevo.","bad");
+  }finally{ $("scanBtn").disabled=false; }
+}
+async function desdeArchivo(file){
+  $("scanRes").innerHTML=""; $("dialBox").classList.add("hide"); scanMsg("Cargando foto…");
+  try{
+    const img=await new Promise((ok,no)=>{ const u=URL.createObjectURL(file), im=new Image(); im.onload=()=>{URL.revokeObjectURL(u);ok(im);}; im.onerror=no; im.src=u; });
+    const k=Math.min(1,1600/Math.max(img.width,img.height)), c=document.createElement("canvas");
+    c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    scanMsg(""); iniciarMarcas(c);
+  }catch(e){ scanMsg("No se pudo abrir la foto. Intenta de nuevo.","bad"); }
+}
+$("mkCv").addEventListener("click",e=>{
+  if(mk.pts.length>=2||!mk.c) return;
+  const r=e.target.getBoundingClientRect();
+  mk.pts.push({x:(e.clientX-r.left)/r.width*mk.c.width,y:(e.clientY-r.top)/r.height*mk.c.height});
+  pintarMarcas(); if(mk.pts.length===2) analizarMarcas();
+});
+$("mkReset").onclick=()=>{ if(mk.c){ mk.pts=[]; pintarMarcas(); } };
+$("dialUse").onclick=()=>{
+  const v=[...$("dials").querySelectorAll("select")].map(x=>x.value);
+  if(v.some(x=>x==="")){ scanMsg("Elige el número de todos los diales.","bad"); return; }
+  $("resp").value=v.join(""); $("dialBox").classList.add("hide"); scanMsg("Lectura capturada: "+v.join("")+". Presiona Responder.","ok"); $("resp").focus();
+};
+$("scanTipo").onchange=()=>{ $("dialN").classList.toggle("hide",tipoScan()!=="dial"); $("dialBox").classList.add("hide"); $("markBox").classList.add("hide"); $("scanRes").innerHTML=""; scanMsg(""); };
+$("dialN").onchange=()=>{ $("dialBox").classList.add("hide"); scanMsg(""); };
+$("scanBtn").onclick=()=>{
+  $("scanFile").value=""; scanMsg(""); $("dialBox").classList.add("hide"); $("markBox").classList.add("hide");
+  if(window.isSecureContext&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia) abrirCam();
+  else scanMsg("La cámara en vivo no está disponible aquí. Toca «Tomar foto con la cámara del celular».","bad");
+};
+$("camShot").onclick=capturar;
+$("camX").onclick=cerrarCam;
+$("scanFile").addEventListener("click",()=>{ $("scanFile").value=""; $("markBox").classList.add("hide"); });
+$("scanFile").addEventListener("change",e=>{ const f=e.target.files&&e.target.files[0]; if(f) desdeArchivo(f); });
+$("scanRes").addEventListener("click",e=>{ const b=e.target.closest("button"); if(b){ $("resp").value=b.textContent; $("resp").focus(); } });
+
+$("start").onclick=empezar;
+$("send").onclick=responder;
+$("anSin").onclick=anomSinLectura;
+$("anCon").onclick=anomConLectura;
+$("resp").addEventListener("keydown",e=>{ if(e.key==="Enter") responder(); });
+$("again").onclick=()=>mostrar("inicio");
+window.campoStop=function(){clearInterval(timer);mostrar("inicio")};
+
+})();
+</script>
+<script>
+
+(function(){
+  var NS="http://www.w3.org/2000/svg";
+  var places=[], dirs=[], hands=[];
+  var host=document.getElementById("cdials");
+  var $=function(id){return document.getElementById(id)};
+  var E=0, N=5, want=0, ok=0, bad=0, elapsed=0, started=false, paused=false, last=null, disc=0;
+
+  function build(n){
+    N=n; host.innerHTML=""; hands=[];
+    places=n===5?[10000,1000,100,10,1]:[1000,100,10,1];
+    dirs=n===5?[1,-1,1,-1,1]:[-1,1,-1,1];
+    places.forEach(function(p,k){
+      var s=document.createElementNS(NS,"svg"); s.setAttribute("viewBox","0 0 100 100");
+      s.style.width=n===5?"19%":"23%";
+      var h='<circle cx="50" cy="50" r="46" fill="#fbf9f3" stroke="#333" stroke-width="2"/>';
+      for(var i=0;i<10;i++){
+        var a=dirs[k]*i*36*Math.PI/180;
+        h+='<text x="'+(50+34*Math.sin(a)).toFixed(1)+'" y="'+(50-34*Math.cos(a)+4).toFixed(1)+'" font-size="11" font-weight="700" text-anchor="middle" fill="#222">'+i+'</text>';
+        h+='<line x1="'+(50+44*Math.sin(a)).toFixed(1)+'" y1="'+(50-44*Math.cos(a)).toFixed(1)+'" x2="'+(50+40*Math.sin(a)).toFixed(1)+'" y2="'+(50-40*Math.cos(a)).toFixed(1)+'" stroke="#333"/>';
+      }
+      
+      
+      h+='<text x="50" y="86" font-size="7" text-anchor="middle" fill="#666">\u00d7'+p+'</text>';
+      h+='<g class="hand"><polygon points="50,16 53,52 47,52" fill="#b3261e"/><circle cx="50" cy="50" r="4" fill="#222"/></g>';
+      s.innerHTML=h; host.appendChild(s); hands.push(s.querySelector(".hand"));
+    });
+  }
+  function show(){
+    places.forEach(function(p,k){
+      hands[k].setAttribute("transform","rotate("+(dirs[k]*((E/(p*10))%1)*360)+" 50 50)");
+    });
+  }
+  function newReading(){
+    build(want===9?(Math.random()<0.5?5:4):(want||5));          // a veces 5 carátulas y a veces 4
+    E=Math.random()*Math.pow(10,N);        // lectura aleatoria con agujas en posiciones intermedias
+    show(); $("ans").value="";
+    $("digits").textContent=N+" dígitos";
+    $("ans").placeholder=N===5?"00000":"0000";
+  }
+  function fmt(t){
+    var m=Math.floor(t/60), s=t-m*60;
+    return String(m).padStart(2,"0")+":"+(s<10?"0":"")+s.toFixed(1);
+  }
+  function msg(t,c){var m=$("cmsg");m.textContent=t;m.className=c||""}
+  function ui(){
+    var run=started&&!paused;
+    $("cstart").hidden=started; $("cstart").disabled=!want;
+    document.querySelectorAll("#clase .nopt").forEach(function(b){b.disabled=started;b.setAttribute("aria-pressed",String(+b.dataset.n===want))});
+    $("pause").disabled=!started;
+    $("pause").textContent=paused?"Reanudar":"Pausar";
+    $("ans").disabled=!run; $("csend").disabled=!run;
+    $("cdials").style.visibility=run?"visible":"hidden";
+  }
+  function register(){
+    if(!(started&&!paused))return;
+    var raw=$("ans").value.trim();
+    if(raw===""){msg("Escribe la lectura que ves en los diales.","bad");return}
+    var guess=parseInt(raw,10), real=Math.floor(E);
+    if(guess===real){
+      ok++; $("okN").textContent=ok;
+      newReading(); msg("¡Correcto! Aquí tienes una lectura nueva.","ok"); $("ans").focus();
+    }else{
+      bad++; $("badN").textContent=bad;
+      msg("Incorrecto. Revisa los diales e inténtalo de nuevo.","bad");
+      $("ans").select();
+    }
+  }
+  function reset(){
+    ok=0;bad=0;elapsed=0;started=false;paused=false;
+    $("okN").textContent=0;$("badN").textContent=0;$("clock").textContent=fmt(0);
+    newReading(); ui(); msg(want?"Pulsa Iniciar para comenzar.":"Elige cuántas carátulas quieres practicar.");
+  }
+  function tick(t){
+    if(last===null)last=t;
+    var dt=Math.min((t-last)/1000,0.2); last=t;
+    if(started&&!paused){elapsed+=dt;disc+=dt*40;$("clock").textContent=fmt(elapsed);$("mark").setAttribute("transform","rotate("+(disc%360)+" 75 28)")}
+    requestAnimationFrame(tick);
+  }
+  document.querySelectorAll("#clase .nopt").forEach(function(b){b.onclick=function(){if(started)return;want=+b.dataset.n;newReading();ui();msg("Pulsa Iniciar para comenzar.")}});
+  $("cstart").onclick=function(){started=true;paused=false;ui();msg("");$("ans").focus()};
+  $("pause").onclick=function(){
+    paused=!paused; ui();
+    if(paused)msg("En pausa. Los diales se ocultan hasta reanudar."); else {msg("");$("ans").focus()}
+  };
+  $("csend").onclick=register;
+  $("ans").addEventListener("keydown",function(e){if(e.key==="Enter")register()});
+  $("reset").onclick=reset;
+  window.claseReset=reset; reset(); requestAnimationFrame(tick);
+})();
+
+</script>
+<script>
+(function(){
+  var ids=["menu","campo","clase"];
+  function go(m){
+    if(m!=="campo"&&window.campoStop)window.campoStop();
+    if(m!=="clase"&&window.claseReset)window.claseReset();
+    ids.forEach(function(id){document.getElementById(id).hidden=(id!==m)});
+    document.body.setAttribute("data-mode",m);
+    window.scrollTo(0,0);
+  }
+  document.addEventListener("click",function(e){
+    var b=e.target.closest("[data-go]"); if(b)go(b.getAttribute("data-go"));
+  });
+})();
+</script>
+</body>
+</html>
